@@ -1,0 +1,17 @@
+.envrc
+/dist
+/CHANGELOG.md
+/script/build
+/tests/data
+
+# VS Code
+.vscode
+
+# IntelliJ
+.idea
+
+# macOS
+.DS_Store
+
+# vim
+*.swp

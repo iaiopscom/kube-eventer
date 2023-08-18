@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    name: kube-eventer
+    app_id: kube-eventer
+    group: stable
+  name: kube-eventer
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-eventer
+  template:
+    metadata:
+      labels:
+        app: kube-eventer
+      annotations:
+        priorityClassName: system-cluster-critical
+    spec:
+      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccount: kube-eventer
+      containers:
+        - image: shengyuan/kube-eventer:v1.2.7-databend
+          name: kube-eventer
+          command:
+            - "/kube-eventer"
+            - "--source=kubernetes:https://kubernetes.default"
+            - --sink=databend:?http://document:databend@document-databend-query-read.app.qa.internal.weimob.com/kube_eventer&table=kube_eventer
+          env:
+            # If TZ is assigned, set the TZ value as the time zone
+            - name: TZ
+              value: "Asia/Shanghai"
+          volumeMounts:
+            - name: localtime
+              mountPath: /etc/localtime
+              readOnly: true
+            - name: zoneinfo
+              mountPath: /usr/share/zoneinfo
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 500m
+              memory: 250Mi
+      volumes:
+        - name: localtime
+          hostPath:
+            path: /etc/localtime
+        - name: zoneinfo
+          hostPath:
+            path: /usr/share/zoneinfo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-eventer
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - events
+    verbs:
+      - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kube-eventer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kube-eventer
+subjects:
+  - kind: ServiceAccount
+    name: kube-eventer
+    namespace: kube-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-eventer
+  namespace: kube-system
